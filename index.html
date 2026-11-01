@@ -111,7 +111,7 @@ table.x td{padding:3px 4px;vertical-align:middle}
     <div class="sign"><h1>Transport Claim</h1><div class="wk" id="wkLabel">Loading…</div></div>
     <div class="controls">
       <select id="weekSel" class="weeksel" aria-label="Choose week"></select>
-      <button id="newWeek">+ New week</button>
+      <select id="newWeek" class="weeksel" aria-label="Add a week"></select>
       <button id="delWeek" class="danger">Delete week</button>
       <button id="backupBtn" title="Save all your data to a file">Backup</button>
       <button id="restoreBtn" title="Load data from a backup file">Restore</button>
@@ -422,7 +422,7 @@ function templates(){
 }
 
 /* ---------- render ---------- */
-function renderAll(){renderWeekSel();renderWeek();renderExtra();renderRoutes();refreshLists();updateTotals()}
+function renderAll(){renderNewWeekSel();renderWeekSel();renderWeek();renderExtra();renderRoutes();refreshLists();updateTotals()}
 let routeArm=null;
 function renderRoutes(){
   const R=S.settings.routes||[];
@@ -568,15 +568,23 @@ document.addEventListener('click',e=>{
 });
 
 /* ---------- weeks ---------- */
-function newWeek(){
-  const keys=Object.keys(S.weeks).sort();const latest=keys[keys.length-1];
-  let start=latest?addDays(latest,7):mondayOf(iso(new Date(Date.UTC(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()))));
-  while(S.weeks[start])start=addDays(start,7);
+function thisMonday(){const n=new Date();const t=iso(new Date(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())));const wd=parseD(t).getUTCDay();return addDays(t,wd===0?-6:1-wd)}
+function newWeek(start){
+  if(!start){start=thisMonday();while(S.weeks[start])start=addDays(start,7)}
+  if(S.weeks[start]){S.cur=start;renderAll();return}
   const days=[0,1,2,3,4].map(n=>blankDay(addDays(start,n)));
-  if(latest){const ld=sortedDays(S.weeks[latest]).filter(d=>d.endOdo!=null).pop();if(ld)days[0].startOdo=ld.endOdo}
+  const prev=Object.keys(S.weeks).filter(k=>k<start).sort().pop();
+  if(prev){const ld=sortedDays(S.weeks[prev]).filter(d=>d.endOdo!=null).pop();if(ld)days[0].startOdo=ld.endOdo}
   S.weeks[start]={start,days};S.cur=start;queueSave('w:'+start);renderAll();
 }
-$('#newWeek').onclick=newWeek;
+function renderNewWeekSel(){
+  const m=thisMonday();let opts='<option value="">+ New week…</option>';
+  for(let i=1;i>=-8;i--){const s=addDays(m,i*7);if(S.weeks[s])continue;
+    const tag=i===0?' (this week)':i===1?' (next week)':i===-1?' (last week)':'';
+    opts+='<option value="'+s+'">'+dLabel(s)+' - '+dLabel(addDays(s,4))+' '+s.slice(0,4)+tag+'</option>'}
+  $('#newWeek').innerHTML=opts;
+}
+$('#newWeek').onchange=e=>{const v=e.target.value;e.target.value='';if(v)newWeek(v)};
 $('#weekSel').onchange=e=>{S.cur=e.target.value;saveRoute=null;renderAll()};
 let weekArm=false;
 $('#delWeek').onclick=()=>{
