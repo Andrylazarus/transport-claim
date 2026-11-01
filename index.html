@@ -323,6 +323,8 @@ const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','De
 const HARI=['MINGGU','SENIN','SELASA','RABU','KAMIS','JUMAT','SABTU'];
 const DAYN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const LS='transportClaim.v1';
+/* Replacement days from the Excel report; always restored when the list is empty */
+const DEFAULT_REPLACEMENT=[{"date":"2026-01-11","job":"Calibration SMT SPI","reason":"IMLEK","usedDate":"2026-02-16"},{"date":"2026-01-17","job":"Calibration SMT SPI","reason":"URUSAN KELUARGA","usedDate":"2026-03-02"},{"date":"2026-01-24","job":"Calibration SMT SPI","reason":"URUSAN KELUARGA","usedDate":"2026-03-03"},{"date":"2026-02-07","job":"VS-IP Setup machine MPI Laser & SPI Pemtron","reason":"URUSAN KELUARGA","usedDate":"2026-03-04"},{"date":"2026-02-14","job":"VS-IP FLIGHT TO INDONESIA","reason":"SICK LEAVE","usedDate":"2026-10-05"},{"date":"2026-02-21","job":"Calibration SMT SPI","reason":"SICK LEAVE","usedDate":"2026-10-06"},{"date":"2026-02-28","job":"Calibration SMT SPI","reason":"SICK LEAVE","usedDate":"2026-10-14"},{"date":"2026-03-07","job":"SMT CALIBRATION Kohyoung","reason":"","usedDate":""},{"date":"2026-03-14","job":"SMT CALIBRATION Kohyoung","reason":"","usedDate":""},{"date":"2026-04-11","job":"PHC Server LM Suppport repair and restore","reason":"","usedDate":""},{"date":"2026-04-12","job":"trip to yemi","reason":"","usedDate":""},{"date":"2026-04-19","job":"SMT CALIBRATION Kohyoung","reason":"","usedDate":""},{"date":"2026-04-25","job":"SMT CALIBRATION Kohyoung","reason":"","usedDate":""},{"date":"2026-05-10","job":"INSTALLATION SELBO II","reason":"","usedDate":""},{"date":"2026-05-23","job":"YEMI Install OLP","reason":"","usedDate":""},{"date":"2026-07-11","job":"POLYTRON INSTALLATION","reason":"","usedDate":""},{"date":"2026-07-12","job":"POLYTRON INSTALLATION","reason":"","usedDate":""},{"date":"2026-07-18","job":"POLYTRON INSTALLATION","reason":"","usedDate":""},{"date":"2026-07-25","job":"POLYTRON INSTALLATION","reason":"","usedDate":""}];
 const DEFAULT_SETTINGS={home:'rumah',places:{Dalkot:11000,Bandara:8500},routes:[
   {name:'Cikarang/Cibitung',legs:[{dir:'Dalkot',amount:11000},{dir:'Cikampek',amount:9500},{dir:'Cikampek',amount:9500},{dir:'Dalkot',amount:11000}]},
   {name:'Karawang Barat',legs:[{dir:'Dalkot',amount:11000},{dir:'Cikampek',amount:16500},{dir:'Cikampek',amount:16500},{dir:'Dalkot',amount:11000}]},
@@ -395,6 +397,7 @@ async function load(){
     if(!$('#banner').innerHTML)showBanner('Data is saved in this browser only. Tap Backup every week to keep a copy, and Restore to load it on another device.');
   }
   if(!S.extra.year)S.extra.year=String(new Date().getFullYear());
+  if(!Array.isArray(S.extra.replacement)||!S.extra.replacement.length){S.extra.replacement=clone(DEFAULT_REPLACEMENT);queueSave('extra')}
   const keys=Object.keys(S.weeks).sort();
   S.cur=keys[keys.length-1]||null;
   renderAll();
