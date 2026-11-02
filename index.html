@@ -365,6 +365,12 @@ async function flush(key){
   if(again[key]){again[key]=false;flush(key)}
 }
 async function writeDoc(key){
+  if(mode==='cloud'){
+    const C=window.TC_CLOUD;
+    if(key==='settings'||key==='extra')return C.write(key,clone(S[key]));
+    const k=key.slice(2);
+    return S.weeks[k]?C.write('week:'+k,clone(S.weeks[k])):C.remove('week:'+k);
+  }
   if(mode==='db'){
     if(key==='settings')return db.doc('settings/main').set(clone(S.settings));
     if(key==='extra')return db.doc('settings/extra').set(clone(S.extra));
@@ -376,7 +382,21 @@ async function writeDoc(key){
 }
 const withTimeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej({code:'timeout',message:'took too long'}),ms))]);
 async function load(){
-  try{ db = window.claude&&window.claude.use ? await withTimeout(window.claude.use('db'),10000).catch(()=>null) : null }catch(e){db=null}
+  if(window.TC_CLOUD){
+    try{
+      const d=await window.TC_CLOUD.load();
+      Object.keys(d).forEach(k=>{if(k.startsWith('week:')){const v=d[k];if(v&&v.start)S.weeks[v.start]=v}});
+      if(d.settings)Object.assign(S.settings,d.settings);else Object.assign(S.settings,clone(DEFAULT_SETTINGS));
+      if(d.extra)Object.assign(S.extra,d.extra);
+      mode='cloud';
+      if(!d.settings)queueSave('settings');
+      if(!d.extra||!(d.extra.replacement||[]).length)showBanner('Your replacement day list is empty. Tap Restore and choose your backup file to load it once; after that it stays in your account.');
+    }catch(e){
+      showBanner('Couldn\u2019t load your saved reports ('+(e&&(e.message||e.code)||'error')+'). Reload the page to try again.',true);
+      return;
+    }
+  }
+  try{ db = !window.TC_CLOUD&&window.claude&&window.claude.use ? await withTimeout(window.claude.use('db'),10000).catch(()=>null) : null }catch(e){db=null}
   if(db){
     try{
       const [ws,sm,ex]=await withTimeout(Promise.all([db.collection('weeks').get(),db.doc('settings/main').get(),db.doc('settings/extra').get()]),10000);
@@ -389,7 +409,7 @@ async function load(){
       showBanner('Couldn’t load your saved reports ('+(e.code||'error')+'). Reload the page to try again. Changes made now stay in this browser only.',true);
     }
   }
-  if(mode!=='db'){
+  if(mode!=='db'&&mode!=='cloud'){
     mode='local';
     let had=false;
     try{const v=JSON.parse(localStorage.getItem(LS)||'null');if(v){had=true;S.weeks=v.weeks||{};Object.assign(S.settings,v.settings||{});Object.assign(S.extra,v.extra||{})}}catch(e){}
@@ -397,7 +417,7 @@ async function load(){
     if(!$('#banner').innerHTML)showBanner('Data is saved in this browser only. Tap Backup every week to keep a copy, and Restore to load it on another device.');
   }
   if(!S.extra.year)S.extra.year=String(new Date().getFullYear());
-  if(!Array.isArray(S.extra.replacement)||!S.extra.replacement.length){S.extra.replacement=clone(DEFAULT_REPLACEMENT);queueSave('extra')}
+  if(DEFAULT_REPLACEMENT.length&&(!Array.isArray(S.extra.replacement)||!S.extra.replacement.length)){S.extra.replacement=clone(DEFAULT_REPLACEMENT);queueSave('extra')}
   const keys=Object.keys(S.weeks).sort();
   S.cur=keys[keys.length-1]||null;
   renderAll();
@@ -687,9 +707,12 @@ $('#restoreFile').onchange=async e=>{
   try{
     const v=JSON.parse(await f.text());
     if(!v||typeof v.weeks!=='object'||!v.settings)throw new Error('not a backup file');
+    const oldKeys=Object.keys(S.weeks);
     S.weeks=v.weeks;S.settings=Object.assign({home:'rumah',places:{},routes:[]},v.settings);S.extra=Object.assign({year:'',replacement:[],calibration:[],tamura:[]},v.extra||{});
     const keys=Object.keys(S.weeks).sort();S.cur=keys[keys.length-1]||null;
+    oldKeys.filter(k=>!S.weeks[k]).forEach(k=>queueSave('w:'+k));
     keys.forEach(k=>queueSave('w:'+k));queueSave('settings');queueSave('extra');
+    $('#banner').innerHTML='';
     renderAll();showMsg('Restored '+keys.length+' week'+(keys.length===1?'':'s')+' from '+f.name);
   }catch(err){showMsg('That file isn’t a Transport Claim backup ('+err.message+').')}
 };
